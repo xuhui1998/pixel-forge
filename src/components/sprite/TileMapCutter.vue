@@ -90,20 +90,35 @@
           <div class="tool-page__compare">
             <!-- Left: grid overlay on source -->
             <div class="preview-card">
-              <div class="preview-card__header">网格预览</div>
-              <div class="tilemap-preview-wrap checkerboard" ref="sourceWrapRef">
-                <img ref="sourceImgRef" :src="sourceUrl" class="tilemap-source-img" @load="onSourceLoad" />
-                <svg v-if="svgGridLines.length" class="tilemap-grid-svg" :viewBox="svgViewBox">
-                  <line
-                    v-for="(line, li) in svgGridLines"
-                    :key="li"
-                    :x1="line.x1" :y1="line.y1"
-                    :x2="line.x2" :y2="line.y2"
-                    stroke="rgba(255,60,60,0.6)"
-                    stroke-width="1"
-                    stroke-dasharray="2,2"
-                  />
-                </svg>
+              <div class="preview-card__header">
+                <span>网格预览</span>
+                <span class="zoom-indicator">{{ Math.round(zoomLevel * 100) }}%</span>
+              </div>
+              <div
+                class="tilemap-preview-viewport"
+                ref="viewportRef"
+                @wheel.prevent="onWheel"
+              >
+                <div class="tilemap-preview-content" :style="{ transform: `scale(${zoomLevel})`, transformOrigin: '0 0' }">
+                  <svg
+                    v-if="svgGridLines.length"
+                    class="tilemap-grid-svg"
+                    :width="originalSize?.width ?? 0"
+                    :height="originalSize?.height ?? 0"
+                    :viewBox="svgViewBox"
+                  >
+                    <line
+                      v-for="(line, li) in svgGridLines"
+                      :key="li"
+                      :x1="line.x1" :y1="line.y1"
+                      :x2="line.x2" :y2="line.y2"
+                      stroke="rgba(255,60,60,0.6)"
+                      stroke-width="1"
+                      stroke-dasharray="2,2"
+                    />
+                  </svg>
+                  <img ref="sourceImgRef" :src="sourceUrl" class="tilemap-source-img" @load="onSourceLoad" />
+                </div>
               </div>
             </div>
 
@@ -177,6 +192,19 @@ const selectedTile = ref(-1)
 // Source image refs
 const sourceWrapRef = ref<HTMLDivElement>()
 const sourceImgRef = ref<HTMLImageElement>()
+const viewportRef = ref<HTMLDivElement>()
+
+// Zoom
+const MIN_ZOOM = 0.1
+const MAX_ZOOM = 10
+const ZOOM_STEP = 0.1
+const zoomLevel = ref(1)
+
+function onWheel(e: WheelEvent) {
+  const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP
+  const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoomLevel.value + delta))
+  zoomLevel.value = Math.round(next * 100) / 100
+}
 
 // Precomputed tile data URLs for display
 const tileDataUrls = ref<string[]>([])
@@ -276,6 +304,7 @@ watch(imageFile, async (file) => {
   result.value = null
   selectedTile.value = -1
   tileDataUrls.value = []
+  zoomLevel.value = 1
   if (file) {
     sourceUrl.value = URL.createObjectURL(file)
     const dims = await loadImageToCanvas(file).then(c => ({ width: c.width, height: c.height }))
@@ -340,19 +369,32 @@ async function downloadSingleTile(index: number) {
 </script>
 
 <style scoped>
-.tilemap-preview-wrap {
+/* Zoom viewport: scrollable container for the scaled content */
+.tilemap-preview-viewport {
+  position: relative;
+  flex: 1;
+  min-height: 200px;
+  overflow: auto;
+  background-image:
+    linear-gradient(45deg, #e0e0e0 25%, transparent 25%),
+    linear-gradient(-45deg, #e0e0e0 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e0e0e0 75%),
+    linear-gradient(-45deg, transparent 75%, #e0e0e0 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  cursor: zoom-in;
+}
+
+.tilemap-preview-content {
   position: relative;
   display: inline-block;
-  max-width: 100%;
-  max-height: 100%;
-  overflow: auto;
+  /* No overflow hidden – let the parent clip */
 }
 
 .tilemap-source-img {
   display: block;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
+  width: 100%;
+  height: 100%;
   image-rendering: pixelated;
 }
 
@@ -360,9 +402,14 @@ async function downloadSingleTile(index: number) {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
   pointer-events: none;
+}
+
+.zoom-indicator {
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+  font-family: 'PS2P', 'Zpix', monospace;
+  margin-left: auto;
 }
 
 /* Stats grid */
@@ -500,7 +547,7 @@ async function downloadSingleTile(index: number) {
 
 .tool-page__compare > .preview-card .preview-card__canvas,
 .tool-page__compare > .preview-card .unique-tiles-grid,
-.tool-page__compare > .preview-card .tilemap-preview-wrap {
+.tool-page__compare > .preview-card .tilemap-preview-viewport {
   flex: 1;
   min-height: 0;
 }
