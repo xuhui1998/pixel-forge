@@ -86,62 +86,59 @@
         </div>
 
         <div v-else class="preview-area">
-          <!-- Source preview with grid overlay -->
-          <div class="tool-page__compare">
-            <!-- Left: grid overlay on source -->
-            <div class="preview-card">
-              <div class="preview-card__header">
-                <span>网格预览</span>
-                <span class="zoom-indicator">{{ Math.round(zoomLevel * 100) }}%</span>
-              </div>
-              <div
-                class="tilemap-preview-viewport"
-                ref="viewportRef"
-                @wheel.prevent="onWheel"
-                @mousedown.prevent="onDragStart"
-                @mousemove.prevent="onDragMove"
-                @mouseup="onDragEnd"
-                @mouseleave="onDragEnd"
-              >
-                <div class="tilemap-preview-content" :style="{ transform: `scale(${zoomLevel})`, transformOrigin: '0 0' }">
-                  <svg
-                    v-if="svgGridLines.length"
-                    class="tilemap-grid-svg"
-                    :width="originalSize?.width ?? 0"
-                    :height="originalSize?.height ?? 0"
-                    :viewBox="svgViewBox"
-                  >
-                    <line
-                      v-for="(line, li) in svgGridLines"
-                      :key="li"
-                      :x1="line.x1" :y1="line.y1"
-                      :x2="line.x2" :y2="line.y2"
-                      stroke="rgba(255,60,60,0.6)"
-                      stroke-width="1"
-                      stroke-dasharray="2,2"
-                    />
-                  </svg>
-                  <img ref="sourceImgRef" :src="sourceUrl" class="tilemap-source-img" @load="onSourceLoad" />
-                </div>
+          <!-- Source preview with grid overlay — full width -->
+          <div class="preview-card preview-card--main">
+            <div class="preview-card__header">
+              <span>网格预览</span>
+              <span class="zoom-indicator">{{ Math.round(zoomLevel * 100) }}%</span>
+            </div>
+            <div
+              class="tilemap-preview-viewport"
+              ref="viewportRef"
+              @wheel.prevent="onWheel"
+              @mousedown.prevent="onDragStart"
+              @mousemove.prevent="onDragMove"
+              @mouseup="onDragEnd"
+              @mouseleave="onDragEnd"
+            >
+              <div class="tilemap-preview-content" :style="{ transform: `scale(${zoomLevel})`, transformOrigin: '0 0' }">
+                <svg
+                  v-if="svgGridLines.length"
+                  class="tilemap-grid-svg"
+                  :width="originalSize?.width ?? 0"
+                  :height="originalSize?.height ?? 0"
+                  :viewBox="svgViewBox"
+                >
+                  <line
+                    v-for="(line, li) in svgGridLines"
+                    :key="li"
+                    :x1="line.x1" :y1="line.y1"
+                    :x2="line.x2" :y2="line.y2"
+                    stroke="rgba(255,60,60,0.6)"
+                    stroke-width="1"
+                    stroke-dasharray="2,2"
+                  />
+                </svg>
+                <img ref="sourceImgRef" :src="sourceUrl" class="tilemap-source-img" @load="onSourceLoad" />
               </div>
             </div>
+          </div>
 
-            <!-- Right: unique tiles grid -->
-            <div v-if="result" class="preview-card">
-              <div class="preview-card__header">
-                <span>去重瓦片 ({{ result.uniqueTiles.length }})</span>
-              </div>
-              <div class="unique-tiles-grid" :style="gridStyle">
-                <div
-                  v-for="(tile, i) in result.uniqueTiles"
-                  :key="i"
-                  class="unique-tile-cell"
-                  :class="{ active: selectedTile === i }"
-                  @click="selectedTile = i"
-                >
-                  <img :src="tileDataUrls[i]" class="unique-tile-img" />
-                  <span class="unique-tile-index">{{ i }}</span>
-                </div>
+          <!-- Unique tiles grid — below, compact -->
+          <div v-if="result" class="preview-card preview-card--tiles">
+            <div class="preview-card__header">
+              <span>去重瓦片 ({{ result.uniqueTiles.length }})</span>
+            </div>
+            <div class="unique-tiles-grid" :style="gridStyle">
+              <div
+                v-for="(tile, i) in result.uniqueTiles"
+                :key="i"
+                class="unique-tile-cell"
+                :class="{ active: selectedTile === i }"
+                @click="selectedTile = i"
+              >
+                <img :src="tileDataUrls[i]" class="unique-tile-img" />
+                <span class="unique-tile-index">{{ i }}</span>
               </div>
             </div>
           </div>
@@ -403,8 +400,6 @@ async function downloadSingleTile(index: number) {
 /* Zoom viewport: scrollable container for the scaled content */
 .tilemap-preview-viewport {
   position: relative;
-  flex: 1;
-  min-height: 400px;
   overflow: auto;
   background-image:
     linear-gradient(45deg, #e0e0e0 25%, transparent 25%),
@@ -573,27 +568,31 @@ async function downloadSingleTile(index: number) {
   width: 100%;
   height: 100%;
   min-height: 0;
+  gap: var(--space-base);
 }
 
-/* Compare layout */
-.tool-page__compare {
-  display: flex;
-  gap: var(--space-base);
+/* Main grid preview card: take most space */
+.preview-card--main {
   flex: 1;
   min-height: 0;
-}
-
-.tool-page__compare > .preview-card {
-  flex: 1;
-  min-width: 0;
   display: flex;
   flex-direction: column;
 }
 
-.tool-page__compare > .preview-card .preview-card__canvas,
-.tool-page__compare > .preview-card .unique-tiles-grid,
-.tool-page__compare > .preview-card .tilemap-preview-viewport {
+.preview-card--main .tilemap-preview-viewport {
   flex: 1;
   min-height: 0;
+}
+
+/* Tiles list card: compact row at bottom */
+.preview-card--tiles {
+  flex: 0 0 auto;
+  max-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-card--tiles .unique-tiles-grid {
+  max-height: 160px;
 }
 </style>
