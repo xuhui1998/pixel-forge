@@ -1,0 +1,7 @@
+export { default as PxSlider } from './PxSlider.vue'
+export { default as PxSwitch } from './PxSwitch.vue'
+export { default as PxCheckbox } from './PxCheckbox.vue'
+export { default as PxSelect } from './PxSelect.vue'
+export { default as PxColorPicker } from './PxColorPicker.vue'
+export { default as PxNumberInput } from './PxNumberInput.vue'
+export { default as PxSegmented } from './PxSegmented.vue'

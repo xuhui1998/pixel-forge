@@ -1,0 +1,134 @@
+/* PixelForge - App-level styles */
+/* Design system variables and base styles are imported via main.ts */
+/* This file contains app-specific overrides */
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--color-canvas, #f7f7f4); }
+::-webkit-scrollbar-thumb { background: var(--color-hairline, #d4d0c8); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-muted, #8c8780); }
+
+/* ── Global component alignment fixes ── */
+/* px-button: align inline SVG icons with text */
+.px-button {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+}
+.px-button svg {
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+/* ── Dark Mode Global Overrides ── */
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background: var(--color-canvas);
+  color: var(--color-body);
+}
+
+html.dark ::-webkit-scrollbar-track {
+  background: var(--color-canvas);
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: var(--color-hairline-strong);
+}
+
+html.dark .px-card {
+  background: var(--color-surface-card) !important;
+  border-color: var(--color-hairline) !important;
+}
+
+/* ── px-button Dark Mode ── */
+/* pixel-ui uses @property --px-color-white { inherits: false } so CSS variable
+   inheritance is blocked. We must override each variant's custom properties
+   directly under html.dark with !important. */
+
+/* Default / base button */
+html.dark .px-button {
+  --px-button-text-color: var(--color-ink) !important;
+  --px-bg-color: var(--color-surface-card) !important;
+  --px-border-color: var(--color-hairline-strong) !important;
+  --px-button-bg-shadow-color: var(--color-surface-strong) !important;
+}
+html.dark .px-button:hover {
+  --px-bg-color: var(--color-surface-strong) !important;
+  --px-button-bg-shadow-color: var(--color-hairline-strong) !important;
+}
+
+/* Primary button: bg stays the accent color, only shadow/border need adjusting */
+html.dark .px-button--primary {
+  --px-button-bg-shadow-color: var(--color-primary-active) !important;
+  --px-border-color: var(--color-primary-active) !important;
+}
+html.dark .px-button--primary:hover {
+  --px-bg-color: var(--color-primary-active) !important;
+  --px-button-bg-shadow-color: var(--color-primary) !important;
+}
+
+/* Success / Warning / Danger — keep their semantic colors,
+   just ensure the shadow/border is visible in dark mode */
+html.dark .px-button--success {
+  --px-button-bg-shadow-color: #15704f !important;
+  --px-border-color: #15704f !important;
+}
+html.dark .px-button--warning {
+  --px-button-bg-shadow-color: #9a6a28 !important;
+  --px-border-color: #9a6a28 !important;
+}
+html.dark .px-button--danger {
+  --px-button-bg-shadow-color: #a42445 !important;
+  --px-border-color: #a42445 !important;
+}
+
+/* Plain button (default type) */
+html.dark .px-button.is-plain {
+  --px-button-text-color: var(--color-ink) !important;
+  --px-bg-color: transparent !important;
+  --px-border-color: var(--color-hairline-strong) !important;
+  --px-button-bg-shadow-color: var(--color-surface-card) !important;
+}
+html.dark .px-button.is-plain:hover {
+  --px-button-text-color: var(--color-on-primary) !important;
+  --px-bg-color: var(--color-primary) !important;
+  --px-border-color: var(--color-primary) !important;
+  --px-button-bg-shadow-color: var(--color-primary) !important;
+}
+
+/* Primary-plain button */
+html.dark .px-button--primary.is-plain {
+  --px-button-text-color: var(--color-primary) !important;
+  --px-bg-color: rgba(255, 106, 26, 0.1) !important;
+  --px-border-color: var(--color-primary) !important;
+  --px-button-bg-shadow-color: rgba(255, 106, 26, 0.15) !important;
+}
+html.dark .px-button--primary.is-plain:hover {
+  --px-button-text-color: var(--color-on-primary) !important;
+  --px-bg-color: var(--color-primary) !important;
+  --px-border-color: var(--color-primary) !important;
+  --px-button-bg-shadow-color: var(--color-primary-active) !important;
+}
+
+/* Disabled button */
+html.dark .px-button.is-disabled {
+  --px-button-text-color: var(--color-muted-soft) !important;
+  --px-bg-color: var(--color-surface-strong) !important;
+  --px-border-color: var(--color-hairline) !important;
+  --px-button-bg-shadow-color: var(--color-surface-strong) !important;
+}
+html.dark .px-button--primary.is-disabled {
+  --px-button-text-color: var(--color-muted-soft) !important;
+  --px-bg-color: rgba(255, 106, 26, 0.35) !important;
+  --px-border-color: rgba(255, 106, 26, 0.4) !important;
+  --px-button-bg-shadow-color: rgba(255, 106, 26, 0.25) !important;
+}
+
+/* ── Pixel Text Font Fix ── */
+/* PxText component doesn't set font-family itself, force it here */
+.px-text {
+  font-family: "PS2P", "Zpix", monospace !important;
+}
