@@ -98,6 +98,10 @@
                 class="tilemap-preview-viewport"
                 ref="viewportRef"
                 @wheel.prevent="onWheel"
+                @mousedown.prevent="onDragStart"
+                @mousemove.prevent="onDragMove"
+                @mouseup="onDragEnd"
+                @mouseleave="onDragEnd"
               >
                 <div class="tilemap-preview-content" :style="{ transform: `scale(${zoomLevel})`, transformOrigin: '0 0' }">
                   <svg
@@ -204,6 +208,33 @@ function onWheel(e: WheelEvent) {
   const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP
   const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoomLevel.value + delta))
   zoomLevel.value = Math.round(next * 100) / 100
+}
+
+// Drag-to-pan
+const isDragging = ref(false)
+const dragStart = ref({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 })
+
+function onDragStart(e: MouseEvent) {
+  if (!viewportRef.value) return
+  isDragging.value = true
+  dragStart.value = {
+    x: e.clientX,
+    y: e.clientY,
+    scrollLeft: viewportRef.value.scrollLeft,
+    scrollTop: viewportRef.value.scrollTop,
+  }
+}
+
+function onDragMove(e: MouseEvent) {
+  if (!isDragging.value || !viewportRef.value) return
+  const dx = e.clientX - dragStart.value.x
+  const dy = e.clientY - dragStart.value.y
+  viewportRef.value.scrollLeft = dragStart.value.scrollLeft - dx
+  viewportRef.value.scrollTop = dragStart.value.scrollTop - dy
+}
+
+function onDragEnd() {
+  isDragging.value = false
 }
 
 // Precomputed tile data URLs for display
@@ -373,7 +404,7 @@ async function downloadSingleTile(index: number) {
 .tilemap-preview-viewport {
   position: relative;
   flex: 1;
-  min-height: 200px;
+  min-height: 400px;
   overflow: auto;
   background-image:
     linear-gradient(45deg, #e0e0e0 25%, transparent 25%),
@@ -382,7 +413,12 @@ async function downloadSingleTile(index: number) {
     linear-gradient(-45deg, transparent 75%, #e0e0e0 75%);
   background-size: 16px 16px;
   background-position: 0 0, 0 8px, 8px -8px, -8px 0;
-  cursor: zoom-in;
+  cursor: grab;
+  user-select: none;
+}
+
+.tilemap-preview-viewport:active {
+  cursor: grabbing;
 }
 
 .tilemap-preview-content {
@@ -528,6 +564,15 @@ async function downloadSingleTile(index: number) {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
+}
+
+/* Preview area: fill the entire main panel */
+.preview-area {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
 }
 
 /* Compare layout */
