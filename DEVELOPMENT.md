@@ -77,6 +77,7 @@ src/
 │   ├── compress.ts             # 图片压缩工具
 │   ├── resize.ts               # 尺寸调整工具
 │   ├── sprite-utils.ts         # 精灵图工具函数
+│   ├── tilemap.ts              # 瓦片地图切割工具函数
 │   ├── palette.ts              # 调色板提取与映射算法
 │   ├── dithering.ts            # 抖动处理算法（Floyd-Steinberg / Ordered / Atkinson）
 │   ├── outline.ts              # 像素描边 / Outline 算法
@@ -117,6 +118,7 @@ src/
 │   └── sprite/                 # 精灵图模块组件
 │       ├── SpriteSplitter.vue  # 精灵图拆帧
 │       ├── SpriteMerger.vue    # 精灵图合并
+│       └── TileMapCutter.vue   # TileMap 瓦片地图切割
 │       ├── SpritePreview.vue   # 帧动画预览
 │       ├── GifExporter.vue     # GIF 导出
 │       └── GifImporter.vue     # GIF 导入拆解
@@ -937,6 +939,259 @@ export async function parseGifToFrames(
 1. 导入 GIF 动画 → 拆解为帧序列 → 编辑修改 → 重新导出 GIF
 2. GIF → Sprite Sheet 转换
 3. 提取 GIF 中某一帧作为静态图使用
+
+---
+
+### 2.6 TileMap 切割
+
+**🌟 亮点等级：★★★★☆（游戏开发高频需求）**
+
+**功能描述**：将一张瓦片地图素材图（Tilemap / Tileset）按网格切割为独立的小瓦片（Tile），自动去重，并支持导出为去重后的瓦片集和 JSON 索引数据。
+
+**技术方案**：Canvas API 网格切割 + 像素级哈希去重
+
+```typescript
+// 示例代码：utils/tilemap.ts
+
+export interface TileInfo {
+  index: number              // 瓦片在原图中的位置索引
+  canvas: HTMLCanvasElement  // 瓦片 Canvas
+  hash: string               // 像素级哈希（用于去重）
+  offsetX: number            // 在原图中的 X 偏移
+  offsetY: number            // 在原图中的 Y 偏移
+  col: number                // 列号
+  row: number                // 行号
+}
+
+export interface TileMapResult {
+  /** 所有切割出的瓦片（含重复） */
+  allTiles: TileInfo[]
+  /** 去重后的唯一瓦片 */
+  uniqueTiles: TileInfo[]
+  /** 瓦片索引映射表：allTiles[i].index → uniqueTiles 中的索引 */
+  indexMap: number[]
+  /** 统计信息 */
+  stats: {
+    totalTiles: number
+    uniqueCount: number
+    duplicateCount: number
+    tileWidth: number
+    tileHeight: number
+    columns: number
+    rows: number
+  }
+}
+
+export interface TileMapSplitOptions {
+  tileWidth: number          // 瓦片宽（px）
+  tileHeight: number         // 瓦片高（px）
+  padding?: number           // 瓦片间距（px），默认 0
+  margin?: number            // 外边距（px），默认 0
+}
+
+/**
+ * 切割瓦片地图
+ * 按指定瓦片尺寸将整张 tileset 图均匀切割
+ */
+export function splitTileMap(
+  sourceCanvas: HTMLCanvasElement,
+  options: TileMapSplitOptions
+): TileMapResult {
+  const { tileWidth, tileHeight, padding = 0, margin = 0 } = options
+  const { width, height } = sourceCanvas
+
+  const cols = Math.floor((width - margin * 2 + padding) / (tileWidth + padding))
+  const rows = Math.floor((height - margin * 2 + padding) / (tileHeight + padding))
+
+  const allTiles: TileInfo[] = []
+  const hashToUnique = new Map<string, TileInfo>()
+  const uniqueTiles: TileInfo[] = []
+  const indexMap: number[] = []
+  let uniqueIndex = 0
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const offsetX = margin + col * (tileWidth + padding)
+      const offsetY = margin + row * (tileHeight + padding)
+
+      if (offsetX + tileWidth > width || offsetY + tileHeight > height) continue
+
+      const tileCanvas = document.createElement('canvas')
+      tileCanvas.width = tileWidth
+      tileCanvas.height = tileHeight
+      const ctx = tileCanvas.getContext('2d')!
+      ctx.drawImage(sourceCanvas, offsetX, offsetY, tileWidth, tileHeight, 0, 0, tileWidth, tileHeight)
+
+      const hash = computeTileHash(tileCanvas)
+      const flatIndex = row * cols + col
+
+      const tile: TileInfo = {
+        index: flatIndex,
+        canvas: tileCanvas,
+        hash,
+        offsetX,
+        offsetY,
+        col,
+        row,
+      }
+
+      allTiles.push(tile)
+
+      // 去重
+      if (!hashToUnique.has(hash)) {
+        hashToUnique.set(hash, tile)
+        uniqueTiles.push(tile)
+        indexMap.push(uniqueIndex)
+        uniqueIndex++
+      } else {
+        const existing = hashToUnique.get(hash)!
+        indexMap.push(existing.index)
+      }
+    }
+  }
+
+  return {
+    allTiles,
+    uniqueTiles,
+    indexMap,
+    stats: {
+      totalTiles: allTiles.length,
+      uniqueCount: uniqueTiles.length,
+      duplicateCount: allTiles.length - uniqueTiles.length,
+      tileWidth,
+      tileHeight,
+      columns: cols,
+      rows: rows,
+    },
+  }
+}
+
+/**
+ * 计算瓦片的像素级哈希
+ * 用于判断两个瓦片是否完全相同（快速去重）
+ */
+function computeTileHash(canvas: HTMLCanvasElement): string {
+  const ctx = canvas.getContext('2d')!
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  const data = imageData.data
+
+  // 简单高效：使用 FNV-1a 哈希
+  let hash = 2166136261 // FNV offset basis
+  for (let i = 0; i < data.length; i += 4) {
+    hash ^= data[i]
+    hash = (hash * 16777619) >>> 0
+    hash ^= data[i + 1]
+    hash = (hash * 16777619) >>> 0
+    hash ^= data[i + 2]
+    hash = (hash * 16777619) >>> 0
+    hash ^= data[i + 3]
+    hash = (hash * 16777619) >>> 0
+  }
+  return hash.toString(16).padStart(8, '0')
+}
+
+/**
+ * 导出瓦片集为单张精灵图（去重后）
+ */
+export function exportTileset(
+  uniqueTiles: TileInfo[],
+  tileWidth: number,
+  tileHeight: number,
+  options: { columns?: number; padding?: number } = {}
+): HTMLCanvasElement {
+  const { columns, padding = 0 } = options
+  const cols = columns ?? Math.ceil(Math.sqrt(uniqueTiles.length))
+  const rows = Math.ceil(uniqueTiles.length / cols)
+
+  const canvas = document.createElement('canvas')
+  canvas.width = cols * (tileWidth + padding) - padding
+  canvas.height = rows * (tileHeight + padding) - padding
+  const ctx = canvas.getContext('2d')!
+
+  uniqueTiles.forEach((tile, i) => {
+    const col = i % cols
+    const row = Math.floor(i / cols)
+    ctx.drawImage(tile.canvas, col * (tileWidth + padding), row * (tileHeight + padding))
+  })
+
+  return canvas
+}
+
+/**
+ * 导出瓦片索引为 JSON 数据
+ * 可用于游戏引擎还原地图
+ */
+export function exportTileMapJSON(
+  result: TileMapResult,
+  options: { mapName?: string } = {}
+): string {
+  const { columns } = result.stats
+  const rows = Math.ceil(result.indexMap.length / columns)
+
+  // 构建 2D 地图数组
+  const map: number[][] = []
+  for (let r = 0; r < rows; r++) {
+    const row: number[] = []
+    for (let c = 0; c < columns; c++) {
+      const idx = r * columns + c
+      row.push(idx < result.indexMap.length ? result.indexMap[idx] : -1)
+    }
+    map.push(row)
+  }
+
+  return JSON.stringify({
+    name: options.mapName || 'TileMap',
+    tileWidth: result.stats.tileWidth,
+    tileHeight: result.stats.tileHeight,
+    columns: result.stats.columns,
+    rows: result.stats.rows,
+    uniqueTileCount: result.stats.uniqueCount,
+    totalTiles: result.stats.totalTiles,
+    map,
+  }, null, 2)
+}
+```
+
+**UI 交互设计**：
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  TileMap 切割                                             │
+├──────────────┬───────────────────────────────────────────┤
+│  上传瓦片地图  │  ┌─────────────────────────────────────┐  │
+│              │  │        原图预览 + 网格叠加             │  │
+│  瓦片宽 [16]  │  │    (SVG 叠加显示切割网格线)          │  │
+│  瓦片高 [16]  │  │                                     │  │
+│  间距   [0]   │  └─────────────────────────────────────┘  │
+│  边距   [0]   │                                          │
+│              │  ┌─────────────────────────────────────┐  │
+│  [开始切割]   │  │     去重后的瓦片预览网格              │  │
+│              │  │  ┌──┬──┬──┬──┐                       │  │
+│  统计:        │  │  │01│02│03│04│  (可点击查看大图)     │  │
+│  总计: 256    │  │  ├──┼──┼──┼──┤                       │  │
+│  唯一: 48     │  │  │05│06│07│08│                       │  │
+│  重复: 208    │  │  └──┴──┴──┴──┘                       │  │
+│              │  └─────────────────────────────────────┘  │
+│  [下载瓦片集]  │                                          │
+│  [下载JSON]   │  ┌─────────────────────────────────────┐  │
+│              │  │       选中瓦片详情 / 大图预览          │  │
+│              │  └─────────────────────────────────────┘  │
+└──────────────┴───────────────────────────────────────────┘
+```
+
+**关键点**：
+- 瓦片地图素材在 2D 像素游戏开发中极为常见（如 RPG Maker、Tiled 地图编辑器导出的素材）
+- 核心功能：按固定尺寸网格切割 + 自动去重（像素级哈希比对）
+- 切割后在原图上叠加网格线 SVG 预览，方便用户确认切割参数
+- 去重后的瓦片集可导出为精灵图（PNG）+ JSON 索引，直接用于游戏引擎
+- 支持 padding（瓦片间距）和 margin（外边距），适配不同格式的 tileset
+- 可扩展：支持自动检测瓦片尺寸（分析图片中重复模式），支持 Tiled TSX 格式导入/导出
+
+**使用场景**：
+1. 导入一张 tileset 素材图 → 切割为独立瓦片 → 去重 → 导出精简后的瓦片集
+2. 分析瓦片使用频率，优化素材包大小
+3. 将 tileset 转换为 JSON 格式，供游戏引擎（Phaser / PixiJS / Godot 等）直接加载
+4. 可视化检查瓦片地图的切割效果
 
 ---
 

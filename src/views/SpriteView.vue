@@ -24,7 +24,7 @@
 
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
-import { Scissors, Link2 } from 'lucide-vue-next'
+import { Scissors, Link2, Grid3x3 } from 'lucide-vue-next'
 
 const route = useRoute()
 
@@ -35,6 +35,7 @@ function isActive(path: string): boolean {
 const navItems = [
   { path: '/sprite/split', label: '拆帧 & GIF', icon: Scissors },
   { path: '/sprite/merge', label: '合并', icon: Link2 },
+  { path: '/sprite/tilemap', label: 'TileMap', icon: Grid3x3 },
 ]
 </script>
 

@@ -117,6 +117,11 @@ const routes: RouteRecordRaw[] = [
         name: 'SpriteMerge',
         component: () => import('../components/sprite/SpriteMerger.vue'),
       },
+      {
+        path: 'tilemap',
+        name: 'TileMap',
+        component: () => import('../components/sprite/TileMapCutter.vue'),
+      },
     ],
   },
 ]
