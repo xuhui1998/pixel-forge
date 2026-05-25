@@ -302,7 +302,7 @@ export function pixelate(
   if (!palette || palette.length === 0) {
     if (options.colorCount >= 256 && !options.grayscale) {
       // No quantization needed
-      palette = null
+      palette = null!
     } else {
       // Sample unique colors for median-cut (limit to ~10000 samples for speed)
       const allPixels: number[][] = []

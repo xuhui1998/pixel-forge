@@ -393,6 +393,29 @@ function onCropMouseUp() {
   isDragging = false
 }
 
+function onCropMouseLeave() {
+  isDragging = false
+}
+
+const cropCursor = computed(() => {
+  if (isDragging) return 'grabbing'
+  return 'crosshair'
+})
+
+const cropHandles = computed(() => {
+  if (cropW.value <= 0 || cropH.value <= 0) return []
+  const x = cropDispX.value
+  const y = cropDispY.value
+  const w = cropDispW.value
+  const h = cropDispH.value
+  return [
+    { id: 'tl', x, y },
+    { id: 'tr', x: x + w, y },
+    { id: 'bl', x, y: y + h },
+    { id: 'br', x: x + w, y: y + h },
+  ]
+})
+
 /* ── Process: Resize ── */
 async function processResize() {
   if (!imageFile.value) return

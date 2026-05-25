@@ -517,10 +517,7 @@ function exportGif() {
     }
     ctx.putImageData(imageData, 0, 0)
 
-    gif.addFrame(scaledCanvas, {
-      delay: Math.round(1000 / gifFps.value),
-      copy: true,
-    })
+    gif.addFrame(scaledCanvas, Math.round(1000 / gifFps.value))
   })
 
   gif.on('progress', (p: number) => { gifProgress.value = Math.round(p * 100) })
