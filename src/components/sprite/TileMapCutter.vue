@@ -401,6 +401,9 @@ async function downloadSingleTile(index: number) {
 .tilemap-preview-viewport {
   position: relative;
   overflow: auto;
+  display: flex;
+  align-items: safe center;
+  justify-content: safe center;
   background-image:
     linear-gradient(45deg, #e0e0e0 25%, transparent 25%),
     linear-gradient(-45deg, #e0e0e0 25%, transparent 25%),
@@ -419,6 +422,9 @@ async function downloadSingleTile(index: number) {
 .tilemap-preview-content {
   position: relative;
   display: inline-block;
+  min-width: fit-content;
+  min-height: fit-content;
+  flex-shrink: 0;
   /* No overflow hidden – let the parent clip */
 }
 
