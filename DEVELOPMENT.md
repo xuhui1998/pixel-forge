@@ -28,6 +28,7 @@
 - [模块一：图片处理](#模块一图片处理)
 - [模块二：精灵图处理](#模块二精灵图处理)
 - [模块三：扩展功能（规划中）](#模块三扩展功能规划中)
+- [模块四：图片编辑](#模块四图片编辑)
 - [UI/UX 像素风格方案](#uiux-像素风格方案)
 - [开发计划与里程碑](#开发计划与里程碑)
 - [参考文档与资源](#参考文档与资源)
@@ -43,9 +44,9 @@
 │  Vue Router  │    Pinia     │   Vue I18n (可选)   │
 ├──────────────┴──────────────┴────────────────────┤
 │                 统一 Canvas 处理层                 │
-├──────────┬──────────┬───────────┬────────────────┤
-│ 图片处理  │ 精灵图处理 │ GIF 编解码 │ 文件导出下载   │
-└──────────┴──────────┴───────────┴────────────────┘
+├──────────┬──────────┬───────────┬────────────────┬───────────────┤
+│ 图片处理  │ 精灵图处理 │ GIF 编解码 │ 文件导出下载   │   图片编辑    │
+└──────────┴──────────┴───────────┴────────────────┴───────────────┘
 ```
 
 所有图片处理核心逻辑基于 **HTML5 Canvas API**，不依赖后端服务，完全在浏览器端运行。
@@ -78,6 +79,7 @@ src/
 │   ├── resize.ts               # 尺寸调整工具
 │   ├── sprite-utils.ts         # 精灵图工具函数
 │   ├── tilemap.ts              # 瓦片地图切割工具函数
+│   └── layer-canvas.ts         # 图层 Canvas 渲染工具
 │   ├── palette.ts              # 调色板提取与映射算法
 │   ├── dithering.ts            # 抖动处理算法（Floyd-Steinberg / Ordered / Atkinson）
 │   ├── outline.ts              # 像素描边 / Outline 算法
@@ -85,6 +87,10 @@ src/
 │   ├── composite.ts            # 图片叠加与混合模式合成
 │   ├── nine-slice.ts           # 九宫格切图（9-Slice）算法
 │   └── mosaic.ts               # 马赛克打码工具
+├── stores/
+│   ├── image.ts                # 图片处理状态管理
+│   ├── sprite.ts               # 精灵图状态管理
+│   └── editor.ts               # 图片编辑状态管理
 ├── workers/
 │   ├── bg-removal.worker.ts    # 背景移除 Web Worker
 │   └── gif-encoder.worker.ts   # GIF 编码 Web Worker
@@ -2301,6 +2307,326 @@ export function analyzeImageInfo(
 - 可视化颜色直方图，帮助用户了解图片色彩分布
 - 统计唯一颜色数，对像素画特别有用（判断是否符合目标色数限制）
 - 需安装 `exifr` 库解析 EXIF 元数据
+
+---
+
+## 模块四：图片编辑
+
+> 基于图层系统的瓦片素材编辑器，支持拖拽定位、图层管理、画布缩放平移等交互。
+> 主要服务于游戏开发中的瓦片地图素材拼接、场景编辑等工作流。
+
+### 4.1 瓦片编辑器 (TileEditor)
+
+**🌟 亮点等级：★★★★☆（核心编辑工具）**
+
+**功能概述**：
+- 🖼️ 多图层 Canvas 编辑：支持添加多个瓦片素材图层，每个图层可独立控制
+- 🖱️ 拖拽定位：在画布上拖拽图层素材到任意位置
+- 📋 图层面板：显示图层列表，支持显隐切换、删除、排序
+- 🔍 画布缩放与平移：滚轮缩放，鼠标拖拽平移画布
+- 💾 导出合成图：将所有图层合成导出为 PNG
+
+**技术方案**：
+
+```typescript
+// 示例代码：types/editor.d.ts
+
+/** 编辑器图层 */
+export interface EditorLayer {
+  id: string
+  name: string
+  image: HTMLImageElement  // 瓦片素材
+  x: number                // 画布上 X 位置
+  y: number                // 画布上 Y 位置
+  width: number            // 显示宽度
+  height: number           // 显示高度
+  visible: boolean         // 是否可见
+  opacity: number          // 透明度 0~1
+  locked: boolean          // 是否锁定（锁定后不可拖动）
+}
+
+/** 编辑器画布状态 */
+export interface EditorCanvasState {
+  zoom: number             // 缩放比例
+  offsetX: number          // 画布平移 X
+  offsetY: number          // 画布平移 Y
+  canvasWidth: number      // 画布宽度
+  canvasHeight: number     // 画布高度
+  showGrid: boolean        // 是否显示网格
+  gridSize: number         // 网格大小
+}
+
+/** 编辑器状态 */
+export interface EditorState {
+  layers: EditorLayer[]
+  selectedLayerId: string | null
+  canvas: EditorCanvasState
+}
+```
+
+```typescript
+// 示例代码：utils/layer-canvas.ts
+
+/**
+ * 渲染所有可见图层到 Canvas
+ * 按图层顺序从底到顶依次绘制
+ */
+export function renderLayers(
+  ctx: CanvasRenderingContext2D,
+  layers: EditorLayer[],
+  canvasState: EditorCanvasState,
+  selectedLayerId: string | null
+): void {
+  const { zoom, offsetX, offsetY } = canvasState
+
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+  ctx.save()
+  ctx.translate(offsetX, offsetY)
+  ctx.scale(zoom, zoom)
+
+  // 绘制每个可见图层
+  for (const layer of layers) {
+    if (!layer.visible) continue
+    ctx.globalAlpha = layer.opacity
+    ctx.drawImage(layer.image, layer.x, layer.y, layer.width, layer.height)
+  }
+
+  // 绘制选中图层边框
+  if (selectedLayerId) {
+    const selected = layers.find(l => l.id === selectedLayerId)
+    if (selected && selected.visible) {
+      ctx.globalAlpha = 1
+      ctx.strokeStyle = '#f54e00'
+      ctx.lineWidth = 2 / zoom
+      ctx.setLineDash([4 / zoom, 4 / zoom])
+      ctx.strokeRect(selected.x, selected.y, selected.width, selected.height)
+      ctx.setLineDash([])
+    }
+  }
+
+  ctx.restore()
+}
+
+/**
+ * 像素级 Hit Test
+ * 从顶到底遍历图层，检测点击位置是否在某个图层的非透明区域内
+ */
+export function hitTestLayers(
+  layers: EditorLayer[],
+  canvasX: number,
+  canvasY: number
+): EditorLayer | null {
+  // 从顶层到底层遍历（数组末尾 = 最上层）
+  for (let i = layers.length - 1; i >= 0; i--) {
+    const layer = layers[i]
+    if (!layer.visible || layer.locked) continue
+
+    // 检查是否在图层矩形范围内
+    if (
+      canvasX >= layer.x &&
+      canvasX < layer.x + layer.width &&
+      canvasY >= layer.y &&
+      canvasY < layer.y + layer.height
+    ) {
+      // 像素级检测：检查点击点是否非透明
+      const offscreen = document.createElement('canvas')
+      offscreen.width = layer.width
+      offscreen.height = layer.height
+      const offCtx = offscreen.getContext('2d')!
+      offCtx.drawImage(layer.image, 0, 0, layer.width, layer.height)
+      const px = Math.floor(canvasX - layer.x)
+      const py = Math.floor(canvasY - layer.y)
+      const pixel = offCtx.getImageData(px, py, 1, 1).data
+      if (pixel[3] > 0) return layer  // alpha > 0 表示非透明
+    }
+  }
+  return null
+}
+
+/**
+ * 将屏幕坐标转换为画布坐标（考虑缩放和平移）
+ */
+export function screenToCanvas(
+  screenX: number,
+  screenY: number,
+  canvasState: EditorCanvasState
+): { x: number; y: number } {
+  return {
+    x: (screenX - canvasState.offsetX) / canvasState.zoom,
+    y: (screenY - canvasState.offsetY) / canvasState.zoom,
+  }
+}
+
+/**
+ * 合成导出所有可见图层为 PNG
+ */
+export function exportCompositeImage(
+  layers: EditorLayer[],
+  canvasWidth: number,
+  canvasHeight: number
+): HTMLCanvasElement {
+  const canvas = document.createElement('canvas')
+  canvas.width = canvasWidth
+  canvas.height = canvasHeight
+  const ctx = canvas.getContext('2d')!
+  ctx.imageSmoothingEnabled = false
+
+  for (const layer of layers) {
+    if (!layer.visible) continue
+    ctx.globalAlpha = layer.opacity
+    ctx.drawImage(layer.image, layer.x, layer.y, layer.width, layer.height)
+  }
+
+  return canvas
+}
+```
+
+```typescript
+// 示例代码：stores/editor.ts
+
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import type { EditorLayer, EditorCanvasState } from '../types/editor'
+
+export const useEditorStore = defineStore('editor', () => {
+  /** 图层列表（索引越大 = 越上层） */
+  const layers = ref<EditorLayer[]>([])
+
+  /** 当前选中图层 ID */
+  const selectedLayerId = ref<string | null>(null)
+
+  /** 画布状态 */
+  const canvasState = ref<EditorCanvasState>({
+    zoom: 1,
+    offsetX: 0,
+    offsetY: 0,
+    canvasWidth: 800,
+    canvasHeight: 600,
+    showGrid: true,
+    gridSize: 32,
+  })
+
+  /** 选中图层 */
+  const selectedLayer = computed(() =>
+    layers.value.find(l => l.id === selectedLayerId.value) ?? null
+  )
+
+  let layerCounter = 0
+
+  /** 添加图层 */
+  function addLayer(image: HTMLImageElement, name?: string) {
+    layerCounter++
+    const layer: EditorLayer = {
+      id: `layer-${Date.now()}-${layerCounter}`,
+      name: name ?? `图层 ${layerCounter}`,
+      image,
+      x: 0,
+      y: 0,
+      width: image.naturalWidth,
+      height: image.naturalHeight,
+      visible: true,
+      opacity: 1,
+      locked: false,
+    }
+    layers.value.push(layer)
+    selectedLayerId.value = layer.id
+  }
+
+  /** 删除图层 */
+  function removeLayer(id: string) {
+    const idx = layers.value.findIndex(l => l.id === id)
+    if (idx === -1) return
+    layers.value.splice(idx, 1)
+    if (selectedLayerId.value === id) {
+      selectedLayerId.value = layers.value.length > 0
+        ? layers.value[Math.min(idx, layers.value.length - 1)].id
+        : null
+    }
+  }
+
+  /** 移动图层顺序（上移/下移） */
+  function moveLayer(id: string, direction: 'up' | 'down') {
+    const idx = layers.value.findIndex(l => l.id === id)
+    if (idx === -1) return
+    const targetIdx = direction === 'up' ? idx + 1 : idx - 1
+    if (targetIdx < 0 || targetIdx >= layers.value.length) return
+    const temp = layers.value[idx]
+    layers.value[idx] = layers.value[targetIdx]
+    layers.value[targetIdx] = temp
+  }
+
+  /** 更新图层位置 */
+  function updateLayerPosition(id: string, x: number, y: number) {
+    const layer = layers.value.find(l => l.id === id)
+    if (layer) {
+      layer.x = x
+      layer.y = y
+    }
+  }
+
+  /** 清空所有图层 */
+  function clearLayers() {
+    layers.value = []
+    selectedLayerId.value = null
+  }
+
+  return {
+    layers,
+    selectedLayerId,
+    canvasState,
+    selectedLayer,
+    addLayer,
+    removeLayer,
+    moveLayer,
+    updateLayerPosition,
+    clearLayers,
+  }
+})
+```
+
+**组件结构 (TileEditor.vue)**：
+
+```
+┌──────────────────────────────────────────────────────┐
+│  tool-page                                            │
+│  ┌──────────────────────────────────────────────────┐│
+│  │  tool-page__body                                  ││
+│  │  ┌────────────────────────┬───────────────────┐  ││
+│  │  │  tool-page__main (70%) │ tool-page__sidebar │  ││
+│  │  │                        │                   │  ││
+│  │  │  ┌──────────────────┐  │ [素材上传区]       │  ││
+│  │  │  │  Canvas 画布      │  │                   │  ││
+│  │  │  │  - 图层渲染       │  │ [图层列表]         │  ││
+│  │  │  │  - 选中边框       │  │ ├ 图层3 👁 🔒 🗑   │  ││
+│  │  │  │  - 网格背景       │  │ ├ 图层2 👁 🔒 🗑   │  ││
+│  │  │  │  - 拖拽交互       │  │ └ 图层1 👁 🔒 🗑   │  ││
+│  │  │  └──────────────────┘  │                   │  ││
+│  │  │  缩放: 100%            │ [画布设置]         │  ││
+│  │  │                        │ 宽: 800  高: 600  │  ││
+│  │  │                        │                   │  ││
+│  │  │                        │ [导出合成图]       │  ││
+│  │  └────────────────────────┴───────────────────┘  ││
+│  └──────────────────────────────────────────────────┘│
+└──────────────────────────────────────────────────────┘
+```
+
+**交互细节**：
+
+| 操作 | 行为 |
+|------|------|
+| 鼠标左键点击图层 | 选中该图层（像素级 hit-test） |
+| 鼠标左键拖拽 | 移动选中图层位置 |
+| 滚轮 | 缩放画布（0.1x ~ 10x） |
+| 空格 + 拖拽 / 中键拖拽 | 平移画布视口 |
+| Delete 键 | 删除选中图层 |
+| Ctrl+Z | 撤销上一步操作（可选） |
+
+**关键点**：
+- Canvas 渲染采用全量重绘策略，每次图层变化时清除画布重新绘制所有图层
+- Hit-test 需从顶层到底层遍历，确保点击到最上面的图层
+- 图层面板列表从上到下 = 从顶到底（数组末尾显示在最上面）
+- 导出时使用独立的 offscreen canvas，不包含选中边框等辅助线
+- 缩放时使用 `imageSmoothingEnabled = false` 保持像素锐利
 
 ---
 

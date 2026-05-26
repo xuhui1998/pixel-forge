@@ -70,6 +70,18 @@
                       <span>{{ tool.name }}</span>
                     </div>
                   </div>
+                  <div class="mac-sidebar__section">
+                    <div class="mac-sidebar__title">图片编辑</div>
+                    <div
+                      v-for="tool in sidebarEditorTools"
+                      :key="tool.name"
+                      class="mac-sidebar__item"
+                      @click="$router.push(tool.path)"
+                    >
+                      <component :is="tool.icon" :size="14" />
+                      <span>{{ tool.name }}</span>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- Main Area -->
@@ -122,8 +134,8 @@
     <section class="section features">
       <div class="container">
         <h2 class="section-title"><px-text :size="28">功能模块</px-text></h2>
-        <p class="section-subtitle">两大核心模块，覆盖像素风格图片处理和精灵图工作流</p>
-        <div class="grid grid-2 gap-lg">
+        <p class="section-subtitle">三大核心模块，覆盖像素风格图片处理、精灵图工作流和图片编辑</p>
+        <div class="grid grid-3 gap-lg">
           <!-- Image Processing Card -->
           <div class="card card-hover feature-card" @click="$router.push('/image')">
             <div class="feature-card__header">
@@ -135,7 +147,7 @@
             <h3 class="feature-card__title">
               <px-text :size="16" bold>图片处理</px-text>
             </h3>
-            <p class="feature-card__desc">7 大图片处理功能，涵盖像素化、格式转换、压缩、缩放、颜色替换、去背景、AI抠图</p>
+            <p class="feature-card__desc">16 大图片处理功能，涵盖像素化、格式转换、压缩、缩放、颜色替换、去背景、AI抠图等</p>
             <div class="feature-card__tags">
               <span class="tag">像素化</span>
               <span class="tag">格式转换</span>
@@ -159,8 +171,27 @@
             <div class="feature-card__tags">
               <span class="tag">拆帧</span>
               <span class="tag">合并</span>
-              <span class="tag">预览</span>
+              <span class="tag">TileMap</span>
               <span class="tag">GIF导出</span>
+            </div>
+          </div>
+
+          <!-- Editor Card -->
+          <div class="card card-hover feature-card" @click="$router.push('/editor')">
+            <div class="feature-card__header">
+              <div class="feature-card__icon-wrap feature-card__icon-wrap--editor">
+                <PenTool :size="24" :stroke-width="1.5" />
+              </div>
+              <ArrowRight :size="16" class="feature-card__arrow" />
+            </div>
+            <h3 class="feature-card__title">
+              <px-text :size="16" bold>图片编辑</px-text>
+            </h3>
+            <p class="feature-card__desc">像素风格瓦片编辑器，在线创建和编辑瓦片地图，实时预览效果</p>
+            <div class="feature-card__tags">
+              <span class="tag">瓦片编辑</span>
+              <span class="tag">实时预览</span>
+              <span class="tag">像素绘制</span>
             </div>
           </div>
         </div>
@@ -207,7 +238,9 @@
 <script setup lang="ts">
 import {
   Grid3x3, RefreshCw, Download, Ruler, Palette, Scissors, Bot,
-  Image, Film, Wrench, ArrowRight, Shield, Zap, Globe, Layers, Search, Link2
+  Image, Film, Wrench, ArrowRight, Shield, Zap, Globe, Layers, Search, Link2,
+  Droplets, Blend, Square, FlipHorizontal2, Combine, Grid2x2, Sparkle, Files, Stamp,
+  PenTool, LayoutGrid
 } from 'lucide-vue-next'
 
 const sidebarImageTools = [
@@ -218,11 +251,25 @@ const sidebarImageTools = [
   { icon: Palette, name: '颜色替换', path: '/image/color-replace' },
   { icon: Scissors, name: '去除背景', path: '/image/bg-remove' },
   { icon: Bot, name: 'AI 抠图', path: '/image/cutout' },
+  { icon: Droplets, name: '调色板映射', path: '/image/palette' },
+  { icon: Blend, name: '抖动处理', path: '/image/dithering' },
+  { icon: Square, name: '轮廓描边', path: '/image/outline' },
+  { icon: FlipHorizontal2, name: '镜像翻转', path: '/image/mirror-flip' },
+  { icon: Combine, name: '图片合成', path: '/image/composite' },
+  { icon: Grid2x2, name: '九宫格切片', path: '/image/nine-slice' },
+  { icon: Sparkle, name: '马赛克模糊', path: '/image/mosaic' },
+  { icon: Files, name: '批量处理', path: '/image/batch' },
+  { icon: Stamp, name: '水印', path: '/image/watermark' },
 ]
 
 const sidebarSpriteTools = [
   { icon: Layers, name: '拆帧 & GIF', path: '/sprite/split' },
   { icon: Link2, name: '精灵图合并', path: '/sprite/merge' },
+  { icon: LayoutGrid, name: 'TileMap 切割', path: '/sprite/tilemap' },
+]
+
+const sidebarEditorTools = [
+  { icon: PenTool, name: '瓦片编辑', path: '/editor/tile' },
 ]
 
 const pixelColors = [
@@ -241,6 +288,15 @@ const imageFeatures = [
   { icon: Palette, name: '颜色替换', path: '/image/color-replace', desc: '精准替换图片中的指定颜色' },
   { icon: Scissors, name: '去除背景', path: '/image/bg-remove', desc: '一键移除图片背景' },
   { icon: Bot, name: 'AI 抠图', path: '/image/cutout', desc: '浏览器本地 AI 智能抠图' },
+  { icon: Droplets, name: '调色板映射', path: '/image/palette', desc: '将图片颜色映射到指定调色板' },
+  { icon: Blend, name: '抖动处理', path: '/image/dithering', desc: '多种抖动算法优化像素表现' },
+  { icon: Square, name: '轮廓描边', path: '/image/outline', desc: '为像素图生成精确轮廓描边' },
+  { icon: FlipHorizontal2, name: '镜像翻转', path: '/image/mirror-flip', desc: '水平或垂直镜像翻转图片' },
+  { icon: Combine, name: '图片合成', path: '/image/composite', desc: '多张图片叠加合成处理' },
+  { icon: Grid2x2, name: '九宫格切片', path: '/image/nine-slice', desc: '九宫格拉伸切片，UI适配利器' },
+  { icon: Sparkle, name: '马赛克模糊', path: '/image/mosaic', desc: '局部马赛克或高斯模糊处理' },
+  { icon: Files, name: '批量处理', path: '/image/batch', desc: '批量应用同一处理流程' },
+  { icon: Stamp, name: '水印', path: '/image/watermark', desc: '添加文字或图片水印' },
 ]
 
 const highlights = [
@@ -654,6 +710,11 @@ const highlights = [
 .feature-card__icon-wrap--sprite {
   background: rgba(192, 133, 50, 0.08);
   color: var(--color-pixel-yellow);
+}
+
+.feature-card__icon-wrap--editor {
+  background: rgba(126, 20, 255, 0.08);
+  color: #7e14ff;
 }
 
 .feature-card__arrow {

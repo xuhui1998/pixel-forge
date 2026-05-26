@@ -7,6 +7,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../views/HomeView.vue'),
   },
   {
+    path: '/help',
+    name: 'Help',
+    component: () => import('../views/HelpView.vue'),
+  },
+  {
     path: '/image',
     name: 'ImageProcess',
     component: () => import('../views/ImageProcessView.vue'),
@@ -121,6 +126,22 @@ const routes: RouteRecordRaw[] = [
         path: 'tilemap',
         name: 'TileMap',
         component: () => import('../components/sprite/TileMapCutter.vue'),
+      },
+    ],
+  },
+  {
+    path: '/editor',
+    name: 'Editor',
+    component: () => import('../views/EditorView.vue'),
+    children: [
+      {
+        path: '',
+        redirect: '/editor/tile',
+      },
+      {
+        path: 'tile',
+        name: 'TileEditor',
+        component: () => import('../components/editor/TileEditor.vue'),
       },
     ],
   },

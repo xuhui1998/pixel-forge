@@ -3,7 +3,7 @@
     <div class="navbar-inner container">
       <!-- Logo -->
       <router-link to="/" class="navbar-brand">
-        <img src="/favicon.svg" alt="PixelForge" class="navbar-logo pixel-render" />
+        <img :src="`${baseURL}favicon.svg`" alt="PixelForge" class="navbar-logo pixel-render" />
         <span class="navbar-title">PixelForge</span>
       </router-link>
 
@@ -39,9 +39,16 @@
 
         <div class="navbar-divider"></div>
 
+        <!-- Help -->
+        <router-link to="/help" class="navbar-icon-btn" title="使用帮助">
+          <HelpCircle :size="18" :stroke-width="1.5" />
+        </router-link>
+
+        <div class="navbar-divider"></div>
+
         <!-- GitHub -->
         <a
-          href="https://github.com/xuhui1998"
+          href="https://github.com/xuhui1998/pixel-forge"
           target="_blank"
           rel="noopener noreferrer"
           class="navbar-icon-btn"
@@ -74,6 +81,10 @@
       </router-link>
       <div class="navbar-mobile-divider"></div>
       <div class="navbar-mobile-actions">
+        <router-link to="/help" class="navbar-mobile-link" @click="mobileOpen = false">
+          <HelpCircle :size="18" :stroke-width="1.5" />
+          <span>使用帮助</span>
+        </router-link>
         <div class="theme-switcher">
           <button
             v-for="mode in themeModes"
@@ -87,7 +98,7 @@
           </button>
         </div>
         <a
-          href="https://github.com/xuhui1998"
+          href="https://github.com/xuhui1998/pixel-forge"
           target="_blank"
           rel="noopener noreferrer"
           class="navbar-mobile-link"
@@ -103,8 +114,10 @@
 <script setup lang="ts">
 import { ref, watchEffect } from 'vue'
 import { useRoute } from 'vue-router'
-import { Home, Image, Film, Sun, Moon, Monitor } from 'lucide-vue-next'
+import { Home, Image, Film, PenTool, Sun, Moon, Monitor, HelpCircle } from 'lucide-vue-next'
 import IconGithub from '../icons/IconGithub.vue'
+
+const baseURL = import.meta.env.BASE_URL
 
 type ThemeMode = 'light' | 'dark' | 'system'
 
@@ -118,6 +131,7 @@ const navLinks = [
   { path: '/', label: '首页', icon: Home, exact: true },
   { path: '/image', label: '图片处理', icon: Image, exact: false },
   { path: '/sprite', label: '精灵图', icon: Film, exact: false },
+  { path: '/editor', label: '图片编辑', icon: PenTool, exact: false },
 ]
 
 const themeModes: { value: ThemeMode; label: string; icon: typeof Sun }[] = [

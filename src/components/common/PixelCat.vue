@@ -1,13 +1,13 @@
 <script lang="ts" setup>
 const stages = [{ type: 'loop', start: 0, end: 39 }]
+const catSrc = `${import.meta.env.BASE_URL}pet.gif`
 </script>
 
 <template>
   <px-animation-frame
-    src="/cat.gif"
+    :src="catSrc"
     :stages="stages"
     :width="120"
-    :height="124"
     overflow
     class="pixel-cat"
   />
