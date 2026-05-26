@@ -86,82 +86,88 @@
         </div>
 
         <div v-else class="preview-area">
-          <!-- Source preview with grid overlay — full width -->
-          <div class="preview-card preview-card--main">
-            <div class="preview-card__header">
-              <span>网格预览</span>
-              <span class="zoom-indicator">{{ Math.round(zoomLevel * 100) }}%</span>
-            </div>
-            <div
-              class="tilemap-preview-viewport"
-              ref="viewportRef"
-              @wheel.prevent="onWheel"
-              @mousedown.prevent="onDragStart"
-              @mousemove.prevent="onDragMove"
-              @mouseup="onDragEnd"
-              @mouseleave="onDragEnd"
-            >
-              <div class="tilemap-preview-content" :style="{ transform: `scale(${zoomLevel})`, transformOrigin: '0 0' }">
-                <svg
-                  v-if="svgGridLines.length"
-                  class="tilemap-grid-svg"
-                  :width="originalSize?.width ?? 0"
-                  :height="originalSize?.height ?? 0"
-                  :viewBox="svgViewBox"
-                >
-                  <line
-                    v-for="(line, li) in svgGridLines"
-                    :key="li"
-                    :x1="line.x1" :y1="line.y1"
-                    :x2="line.x2" :y2="line.y2"
-                    stroke="rgba(255,60,60,0.6)"
-                    stroke-width="1"
-                    stroke-dasharray="2,2"
-                  />
-                </svg>
-                <img ref="sourceImgRef" :src="sourceUrl" class="tilemap-source-img" @load="onSourceLoad" />
+          <!-- Horizontal layout: grid preview 60% | tiles+detail 40% -->
+          <div class="preview-layout">
+            <!-- Left: grid preview -->
+            <div class="preview-card preview-card--main">
+              <div class="preview-card__header">
+                <span>网格预览</span>
+                <span class="zoom-indicator">{{ Math.round(zoomLevel * 100) }}%</span>
               </div>
-            </div>
-          </div>
-
-          <!-- Unique tiles grid — below, compact -->
-          <div v-if="result" class="preview-card preview-card--tiles">
-            <div class="preview-card__header">
-              <span>去重瓦片 ({{ result.uniqueTiles.length }})</span>
-            </div>
-            <div class="unique-tiles-grid" :style="gridStyle">
               <div
-                v-for="(tile, i) in result.uniqueTiles"
-                :key="i"
-                class="unique-tile-cell"
-                :class="{ active: selectedTile === i }"
-                @click="selectedTile = i"
+                class="tilemap-preview-viewport"
+                ref="viewportRef"
+                @wheel.prevent="onWheel"
+                @mousedown.prevent="onDragStart"
+                @mousemove.prevent="onDragMove"
+                @mouseup="onDragEnd"
+                @mouseleave="onDragEnd"
               >
-                <img :src="tileDataUrls[i]" class="unique-tile-img" />
-                <span class="unique-tile-index">{{ i }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Selected tile detail -->
-          <div v-if="selectedTile >= 0 && result" class="preview-card" style="flex: 0 0 auto;">
-            <div class="preview-card__header">
-              <span>瓦片详情 #{{ selectedTile }}</span>
-            </div>
-            <div class="tile-detail">
-              <div class="tile-detail-img-wrap checkerboard">
-                <img :src="tileDataUrls[selectedTile]" class="tile-detail-img" />
-              </div>
-              <div class="tile-detail-info">
-                <div><px-text>尺寸: {{ result.stats.tileWidth }} × {{ result.stats.tileHeight }}</px-text></div>
-                <div><px-text>哈希: {{ result.uniqueTiles[selectedTile].hash }}</px-text></div>
-                <div>
-                  <px-text>出现次数: {{ tileOccurrenceCount[selectedTile] }}</px-text>
+                <div class="tilemap-preview-content" :style="{ transform: `scale(${zoomLevel})`, transformOrigin: '0 0' }">
+                  <svg
+                    v-if="svgGridLines.length"
+                    class="tilemap-grid-svg"
+                    :width="originalSize?.width ?? 0"
+                    :height="originalSize?.height ?? 0"
+                    :viewBox="svgViewBox"
+                  >
+                    <line
+                      v-for="(line, li) in svgGridLines"
+                      :key="li"
+                      :x1="line.x1" :y1="line.y1"
+                      :x2="line.x2" :y2="line.y2"
+                      stroke="rgba(255,60,60,0.6)"
+                      stroke-width="1"
+                      stroke-dasharray="2,2"
+                    />
+                  </svg>
+                  <img ref="sourceImgRef" :src="sourceUrl" class="tilemap-source-img" @load="onSourceLoad" />
                 </div>
-                <div class="mt-base">
-                  <px-button size="small" plain @click="downloadSingleTile(selectedTile)">
-                    <Download :size="12" /> 下载此瓦片
-                  </px-button>
+              </div>
+            </div>
+
+            <!-- Right: tiles + detail (vertical) -->
+            <div class="preview-right">
+              <!-- Unique tiles grid -->
+              <div v-if="result" class="preview-card preview-card--tiles">
+                <div class="preview-card__header">
+                  <span>去重瓦片 ({{ result.uniqueTiles.length }})</span>
+                </div>
+                <div class="unique-tiles-grid" :style="gridStyle">
+                  <div
+                    v-for="(tile, i) in result.uniqueTiles"
+                    :key="i"
+                    class="unique-tile-cell"
+                    :class="{ active: selectedTile === i }"
+                    @click="selectedTile = i"
+                  >
+                    <img :src="tileDataUrls[i]" class="unique-tile-img" />
+                    <span class="unique-tile-index">{{ i }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Selected tile detail -->
+              <div v-if="selectedTile >= 0 && result" class="preview-card preview-card--detail">
+                <div class="preview-card__header">
+                  <span>瓦片详情 #{{ selectedTile }}</span>
+                </div>
+                <div class="tile-detail">
+                  <div class="tile-detail-img-wrap checkerboard">
+                    <img :src="tileDataUrls[selectedTile]" class="tile-detail-img" />
+                  </div>
+                  <div class="tile-detail-info">
+                    <div><px-text>尺寸: {{ result.stats.tileWidth }} × {{ result.stats.tileHeight }}</px-text></div>
+                    <div><px-text>哈希: {{ result.uniqueTiles[selectedTile].hash }}</px-text></div>
+                    <div>
+                      <px-text>出现次数: {{ tileOccurrenceCount[selectedTile] }}</px-text>
+                    </div>
+                    <div class="mt-base">
+                      <px-button size="small" plain @click="downloadSingleTile(selectedTile)">
+                        <Download :size="12" /> 下载此瓦片
+                      </px-button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -570,17 +576,24 @@ async function downloadSingleTile(index: number) {
 /* Preview area: fill the entire main panel */
 .preview-area {
   display: flex;
-  flex-direction: column;
   width: 100%;
   height: 100%;
   min-height: 0;
-  gap: var(--space-base);
 }
 
-/* Main grid preview card: take most space */
-.preview-card--main {
-  flex: 1;
+/* Horizontal layout: grid 60% | right 40% */
+.preview-layout {
+  display: flex;
+  gap: var(--space-base);
+  width: 100%;
+  height: 100%;
   min-height: 0;
+}
+
+/* Main grid preview card: 60% width */
+.preview-card--main {
+  flex: 0 0 60%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
@@ -590,15 +603,32 @@ async function downloadSingleTile(index: number) {
   min-height: 0;
 }
 
-/* Tiles list card: compact row at bottom */
+/* Right column: tiles + detail stacked vertically */
+.preview-right {
+  flex: 0 0 calc(40% - var(--space-base));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-base);
+  min-height: 0;
+  min-width: 0;
+}
+
+/* Tiles list card: takes remaining space */
 .preview-card--tiles {
-  flex: 0 0 auto;
-  max-height: 200px;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
 .preview-card--tiles .unique-tiles-grid {
-  max-height: 160px;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+
+/* Tile detail card: auto height */
+.preview-card--detail {
+  flex: 0 0 auto;
 }
 </style>
